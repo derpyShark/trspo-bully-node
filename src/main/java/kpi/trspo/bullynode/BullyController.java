@@ -68,20 +68,22 @@ public class BullyController {
     @PutMapping("/algo")
     public void startAlgo(){
         if(!checkLivingLeaders()){
-            if(!bullyObject.getElection()){
-                bullyObject.setElection(true);
-                sendElectionMessages();
-            }
+            sendElectionMessages();
+            bullyObject.setElection(true);
         }
     }
 
-    @PutMapping("/electionMessage")
-    public void takeElectionMessage(@RequestBody boolean elected) {
-        if(!bullyObject.getElection() && !elected){
-            bullyObject.setElection(true);
+    @PutMapping("/sendElections")
+    public int takeElectionMessage() {
+        if(!bullyObject.getElection()){
             sendElectionMessages();
         }
+        return bullyObject.getId();
+    }
 
+    @PutMapping("/ok")
+    public int askForOk(@RequestBody int id){
+        return 200;
     }
 
     private void sendElectionMessages(){
@@ -92,14 +94,20 @@ public class BullyController {
             if(entry.getKey() > bullyObject.getId())
             {
                 try{
-                    restTemplate.put(listenerURL, bullyObject.getId() + " sends election to " + entry.getKey());
-                    restTemplate.put(URL+"electionMessage", bullyObject.getLeader());
-                    restTemplate.put(listenerURL,"we got to the break");
+                    restTemplate.put(listenerURL, bullyObject.getId()+" asks if "+entry.getKey()+" is alive");
+                    restTemplate.put(URL+"ok", bullyObject.getId());
+                    restTemplate.put(listenerURL, entry.getKey()+" is alive");
                     gotResponse = true;
-                    break;
                 }
                 catch(Exception e){
-                    restTemplate.put(listenerURL, "We had a timeout sending EM");
+                    restTemplate.put(listenerURL, entry.getKey()+" is dead");
+                }
+                if(gotResponse){
+                    restTemplate.put(listenerURL, bullyObject.getId()+" sends election to "+entry.getKey());
+                    restTemplate.put(URL+"sendElections", Void.class);
+                    restTemplate.put(listenerURL,"we got to the break");
+                    bullyObject.setElection(true);
+                    break;
                 }
             }
         }
